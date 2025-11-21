@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Orologio 06:00→23:00 — ciclo 4 minuti</title>
+<style>
+  :root{
+    --clock-color: #ffffff;
+    --phase-name-color: rgba(255,255,255,0.9);
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    background: #000;
+  }
+
+  /* Container */
+  .wrap{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:48px;
+    box-sizing:border-box;
+    transition: background 1s linear, filter 400ms linear;
+    position:relative;
+    overflow:hidden;
+  }
+
+  /* main minimal panel */
+  .panel{
+    width:100%;
+    max-width:900px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:24px;
+  }
+
+  .clock {
+    font-variant-numeric: tabular-nums;
+    font-weight:600;
+    color:var(--clock-color);
+    font-size:88px;
+    letter-spacing:2px;
+    line-height:0.95;
+  }
+
+  @media (max-width:640px){
+    .clock{ font-size:56px; }
+  }
+
+  .meta {
+    text-align:right;
+    color:var(--phase-name-color);
+    min-width:220px;
+  }
+
+  .meta .phase {
+    font-size:18px;
+    font-weight:600;
+    letter-spacing:1px;
+    margin-bottom:10px;
+  }
+  .meta .time-virtual {
+    font-size:14px;
+    opacity:0.95;
+    margin-bottom:6px;
+  }
+  .meta .hint {
+    font-size:12px;
+    opacity:0.75;
+  }
+
+  /* Background gradient element */
+  .bg {
+    position:absolute;
+    inset:0;
+    z-index: -3;
+    transition: background 600ms linear;
+    background: linear-gradient(180deg, #ffd1dc, #ff8fa3);
+    filter: saturate(1.02);
+  }
+
+  /* subtle directional light */
+  .light-shine{
+    position:absolute;
+    inset:0;
+    z-index:-2;
+    pointer-events:none;
+    background: radial-gradient(60% 40% at 20% 20%, rgba(255,255,255,0.06), rgba(255,255,255,0) 20%);
+    mix-blend-mode: overlay;
+  }
+
+  /* twilight candle glow overlay */
+  .candle-glow{
+    position:absolute;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    mix-blend-mode: screen;
+    opacity:0;
+    transition: opacity 500ms linear, transform 300ms linear, filter 300ms linear;
+    background:
+      radial-gradient(600px 200px at 50% 85%, rgba(255,210,120,0.12), rgba(255,150,60,0.06) 10%, transparent 30%),
+      radial-gradient(300px 120px at 20% 70%, rgba(255,210,120,0.08), transparent 40%),
+      radial-gradient(260px 100px at 80% 75%, rgba(255,180,80,0.06), transparent 40%);
+    filter: blur(12px);
+  }
+
+  /* small footer */
+  .footer-note{
+    position: absolute;
+    left:12px;
+    bottom:10px;
+    color: rgba(255,255,255,0.6);
+    font-size:12px;
+    letter-spacing:1px;
+  }
+
+  /* accessibility */
+  .clock, .meta{ user-select:none; }
+
+</style>
+</head>
+<body>
+  <div class="wrap" id="wrap">
+    <div class="bg" id="bg" aria-hidden="true"></div>
+    <div class="light-shine" aria-hidden="true"></div>
+    <div class="candle-glow" id="candle" aria-hidden="true"></div>
+
+    <div class="panel" role="main" aria-live="polite">
+      <div class="clock" id="clock" aria-label="orologio virtuale">06:00</div>
+      <div class="meta">
+        <div class="phase" id="phase">Alba</div>
+        <div class="time-virtual" id="vtime">06:00:00</div>
+        <div class="hint">Ciclo 4 minuti — 06:00 → 23:00</div>
+      </div>
+    </div>
+
+    <div class="footer-note">Minimal day-cycle • 4:00 min loop</div>
+  </div>
+
+<script>
+/*
+  Mappatura:
+  - Virtual day: 06:00 (6) → 23:00 (23) => 17 ore = 61.200 secondi virtuali
+  - Durata reale ciclo = 240.000 ms (4 minuti)
+  - Avanzamento virtuale per ms = 61.200 / 240.000
+*/
+
+const CYCLE_MS = 240000; // 4 minuti in ms
+const VIRTUAL_START_HOUR = 6;
+const VIRTUAL_TOTAL_SECONDS = (23 - 6) * 3600; // 61200
+
+const wrap = document.getElementById('wrap');
+const bg = document.getElementById('bg');
+const clockEl = document.getElementById('clock');
+const vtimeEl = document.getElementById('vtime');
+const phaseEl = document.getElementById('phase');
+const candle = document.getElementById('candle');
+
+let cycleStart = performance.now();
+
+// definizione fasi con palette (c1 -> c2)
+const PHASES = [
+  { name: 'Alba', startH:6, endH:8,  c1:'#FFD1DC', c2:'#FF8FA3' },       // rosa alba
+  { name: 'Giorno', startH:8, endH:17, c1:'#A7D3FF', c2:'#FFFFFF' },    // azzurro -> bianco
+  { name: 'Tramonto', startH:17,endH:20, c1:'#FFB27A', c2:'#FF3E2D' },  // arancio -> rosso
+  { name: 'Twilight', startH:20,endH:23, c1:'#071433', c2:'#0B193B' }   // blu notte
+];
+
+// helper: hex <-> rgb e mix
+function hexToRgb(hex) {
+  hex = hex.replace('#','');
+  if(hex.length === 3) hex = hex.split('').map(h=>h+h).join('');
+  const n = parseInt(hex,16);
+  return { r: (n>>16)&255, g: (n>>8)&255, b: n&255 };
+}
+function rgbToHex({r,g,b}) {
+  const toHex = v => ('0'+Math.round(Math.max(0,Math.min(255,v))).toString(16)).slice(-2);
+  return '#'+toHex(r)+toHex(g)+toHex(b);
+}
+function lerp(a,b,t){ return a + (b-a)*t; }
+function mixHex(h1,h2,t){
+  const a = hexToRgb(h1), b = hexToRgb(h2);
+  return rgbToHex({
+    r: lerp(a.r,b.r,t),
+    g: lerp(a.g,b.g,t),
+    b: lerp(a.b,b.b,t)
+  });
+}
+
+// calcola secondi virtuali dato elapsed reale
+function getVirtualSeconds(elapsedMs){
+  const fraction = (elapsedMs % CYCLE_MS) / CYCLE_MS;
+  return Math.round(fraction * VIRTUAL_TOTAL_SECONDS);
+}
+
+function formatVirtualTime(vSeconds){
+  const total = VIRTUAL_START_HOUR*3600 + vSeconds;
+  let hh = Math.floor(total/3600) % 24;
+  let mm = Math.floor((total%3600)/60);
+  let ss = Math.floor(total%60);
+  const pad=(n)=> (n<10? '0'+n: ''+n);
+  return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+}
+
+// trova fase e progresso
+function getPhaseInfo(hh, mm, ss){
+  const time = hh + mm/60 + ss/3600;
+  for(let p of PHASES){
+    if(time >= p.startH && time < p.endH){
+      const phaseLen = p.endH - p.startH;
+      const local = (time - p.startH) / phaseLen;
+      return { phase: p, progress: local };
+    }
+  }
+  return { phase: PHASES[PHASES.length-1], progress: 1.0 };
+}
+
+let lastTime = performance.now();
+let flickerTimer = 0;
+function updateCandleFlicker(active, delta){
+  if(active){
+    candle.style.opacity = 1;
+    flickerTimer += delta;
+    const v = 0.6 + Math.sin(flickerTimer*0.02)*0.15 + (Math.random()*0.06 - 0.03);
+    candle.style.transform = `scale(${1 + 0.004*Math.sin(flickerTimer*0.04)})`;
+    candle.style.filter = `blur(${12 + Math.sin(flickerTimer*0.03)*2}px)`;
+    candle.style.opacity = 0.6 + Math.random()*0.16;
+  } else {
+    candle.style.opacity = 0;
+  }
+}
+
+// loop principale
+function tick(now){
+  const elapsed = now - cycleStart;
+  const delta = now - lastTime;
+  lastTime = now;
+
+  const vSec = getVirtualSeconds(elapsed);
+  const totalVirtual = VIRTUAL_START_HOUR*3600 + vSec;
+  const hh = Math.floor(totalVirtual/3600)%24;
+  const mm = Math.floor((totalVirtual%3600)/60);
+  const ss = Math.floor(totalVirtual%60);
+
+  // aggiornamento orologio
+  const pad = n => n<10? '0'+n: ''+n;
+  clockEl.textContent = `${pad(hh)}:${pad(mm)}`;
+  vtimeEl.textContent = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+
+  // fase corrente
+  const {phase, progress} = getPhaseInfo(hh, mm, ss);
+  phaseEl.textContent = phase.name;
+
+  // mix colori della fase (con lieve blend verso la fase successiva se siamo vicini al bordo)
+  let idx = PHASES.indexOf(phase);
+  let next = PHASES[Math.min(idx+1, PHASES.length-1)];
+  const inner = mixHex(phase.c1, phase.c2, Math.min(1, progress*1.0));
+  const nearEndBlend = (progress > 0.85) ? (progress-0.85)/0.15 : 0;
+  const across = mixHex(inner, next.c1, nearEndBlend);
+
+  // impostazione gradient sul div .bg
+  bg.style.background = `linear-gradient(180deg, ${across}, ${mixHex(across, '#000000', 0.02)})`;
+
+  // adattamenti di luminosità/contrasto e testo per leggibilità
+  if(phase.name === 'Giorno'){
+    wrap.style.filter = 'brightness(1) contrast(1)';
+    document.documentElement.style.setProperty('--clock-color', '#0B1B2B');
+    document.documentElement.style.setProperty('--phase-name-color', 'rgba(10,20,30,0.85)');
+  } else if(phase.name === 'Alba'){
+    wrap.style.filter = 'brightness(1.02) contrast(0.98)';
+    document.documentElement.style.setProperty('--clock-color', '#FFFFFF');
+    document.documentElement.style.setProperty('--phase-name-color', 'rgba(255,255,255,0.9)');
+  } else if(phase.name === 'Tramonto'){
+    wrap.style.filter = 'brightness(0.98) contrast(1.02)';
+    document.documentElement.style.setProperty('--clock-color', '#FFFFFF');
+    document.documentElement.style.setProperty('--phase-name-color', 'rgba(255,255,255,0.9)');
+  } else if(phase.name === 'Twilight'){
+    wrap.style.filter = 'brightness(0.78) contrast(1.05)';
+    document.documentElement.style.setProperty('--clock-color', '#FFFFFF');
+    document.documentElement.style.setProperty('--phase-name-color', 'rgba(255,255,255,0.95)');
+  }
+
+  // candle glow solo in twilight
+  updateCandleFlicker(phase.name === 'Twilight', delta);
+
+  requestAnimationFrame(tick);
+}
+
+// avvia loop
+requestAnimationFrame(tick);
+
+// click per resettare il ciclo (utile per testing)
+wrap.addEventListener('click', (e) => {
+  cycleStart = performance.now();
+});
+
+</script>
+</body>
+</html>
