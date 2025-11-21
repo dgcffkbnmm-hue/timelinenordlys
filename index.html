@@ -167,10 +167,10 @@ let cycleStart = performance.now();
 
 // definizione fasi con palette (c1 -> c2)
 const PHASES = [
-  { name: 'Alba', startH:6, endH:8,  c1:'#FFD1DC', c2:'#FF8FA3' },       // rosa alba
-  { name: 'Giorno', startH:8, endH:17, c1:'#A7D3FF', c2:'#FFFFFF' },    // azzurro -> bianco
-  { name: 'Tramonto', startH:17,endH:20, c1:'#FFB27A', c2:'#FF3E2D' },  // arancio -> rosso
-  { name: 'Twilight', startH:20,endH:23, c1:'#071433', c2:'#0B193B' }   // blu notte
+  { name: 'DAWN', startH:6, endH:10,  c1:'#FFD1DC', c2:'#FF8FA3' },       // rosa alba
+  { name: 'MIDDAY', startH:10, endH:14, c1:'#A7D3FF', c2:'#FFFFFF' },    // azzurro -> bianco
+  { name: 'AFTERNOON', startH:14,endH:18, c1:'#FFB27A', c2:'#FF3E2D' },  // arancio -> rosso
+  { name: 'SUNSET/TWILIGHT', startH:18,endH:23, c1:'#071433', c2:'#0B193B' }   // blu notte
 ];
 
 // helper: hex <-> rgb e mix
@@ -304,3 +304,4 @@ wrap.addEventListener('click', (e) => {
 </script>
 </body>
 </html>
+
