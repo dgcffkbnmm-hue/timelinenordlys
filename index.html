@@ -14,7 +14,6 @@
     height:100%;
     margin:0;
     font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
-    background: #000;
     overflow: hidden;
   }
 
@@ -24,7 +23,6 @@
     align-items:center;
     justify-content:center;
     padding:48px;
-    box-sizing:border-box;
     position:relative;
     overflow:hidden;
   }
@@ -75,14 +73,6 @@
     opacity:0.75;
   }
 
-  .bg-img{
-    position:absolute;
-    inset:0;
-    z-index:-3;
-    background-size:cover;
-    background-position:center;
-  }
-
   .bg-filter{
     position:absolute;
     inset:0;
@@ -111,12 +101,10 @@
   }
 
   .clock, .meta{ user-select:none; }
-
 </style>
 </head>
 <body>
   <div class="wrap" id="wrap">
-    <div class="bg-img" id="bgImg" aria-hidden="true"></div>
     <div class="bg-filter" id="bgFilter" aria-hidden="true"></div>
 
     <div class="panel" role="main" aria-live="polite">
@@ -137,7 +125,6 @@ const VIRTUAL_START_HOUR = 6;
 const VIRTUAL_TOTAL_SECONDS = (23 - 6) * 3600;
 
 const wrap = document.getElementById('wrap');
-const bgImg = document.getElementById('bgImg');
 const bgFilter = document.getElementById('bgFilter');
 const clockEl = document.getElementById('clock');
 const vtimeEl = document.getElementById('vtime');
@@ -145,18 +132,13 @@ const phaseEl = document.getElementById('phase');
 
 let cycleStart = performance.now();
 
-// Fasi della giornata con URL diretto delle immagini
+// Fasi della giornata con colori
 const PHASES = [
-  { name:'DAWN', startH:6, endH:10, img:'https://i.imgur.com/jxA1WbR.jpg', color:'#FFB2A0' },
-  { name:'MIDDAY', startH:10,endH:14,img:'https://i.imgur.com/qz1lQFQ.jpg', color:'#A0D4FF' },
-  { name:'AFTERNOON', startH:14,endH:18,img:'https://i.imgur.com/7p7ZbI3.jpg', color:'#FFAA4D' },
-  { name:'SUNSET_TWILIGHT', startH:18,endH:23,img:'https://i.imgur.com/8XQ0ZLk.jpg', color:'#2C3A70' }
+  { name:'DAWN', startH:6, endH:10, color:'#FFB2A0' },
+  { name:'MIDDAY', startH:10,endH:14, color:'#A0D4FF' },
+  { name:'AFTERNOON', startH:14,endH:18, color:'#FFAA4D' },
+  { name:'SUNSET_TWILIGHT', startH:18,endH:23, color:'#2C3A70' }
 ];
-
-// Imposta subito immagine iniziale
-bgImg.style.backgroundImage = `url('${PHASES[0].img}')`;
-bgImg.style.backgroundSize = 'cover';
-bgImg.style.backgroundPosition = 'center';
 
 function getVirtualSeconds(elapsedMs){
   const fraction = (elapsedMs % CYCLE_MS) / CYCLE_MS;
@@ -190,8 +172,8 @@ function tick(now){
   const {phase, progress} = getPhaseInfo(hh, mm, ss);
   phaseEl.textContent = phase.name;
 
-  // aggiorna immagine di sfondo
-  bgImg.style.backgroundImage = `url('${phase.img}')`;
+  // Imposta sfondo dinamico colorato
+  wrap.style.background = phase.color;
 
   // overlay aurora dinamico
   const t = (performance.now()%5000)/5000;
@@ -205,9 +187,7 @@ function tick(now){
 
 requestAnimationFrame(tick);
 
-// click per resettare ciclo
 wrap.addEventListener('click', ()=>{ cycleStart = performance.now(); });
-
 </script>
 </body>
 </html>
