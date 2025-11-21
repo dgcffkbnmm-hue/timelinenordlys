@@ -1,17 +1,13 @@
-<!-- save as index.html and open in a browser -->
 <!doctype html>
 <html lang="it">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Orologio 6:00→23:00 — ciclo 4 minuti</title>
+<title>Orologio 06:00→23:00 — ciclo 4 minuti</title>
 <style>
   :root{
-    --bg-grad-1: #ffd1dc;
-    --bg-grad-2: #ff8fa3;
-    --overlay-tint: rgba(0,0,0,0.06);
     --clock-color: #ffffff;
-    --phase-name-color: rgba(255,255,255,0.85);
+    --phase-name-color: rgba(255,255,255,0.9);
   }
 
   html,body{
@@ -29,12 +25,12 @@
     justify-content:center;
     padding:48px;
     box-sizing:border-box;
-    transition: background 1s linear;
+    transition: background 1s linear, filter 400ms linear;
     position:relative;
     overflow:hidden;
   }
 
-  /* main minimal card */
+  /* main minimal panel */
   .panel{
     width:100%;
     max-width:900px;
@@ -71,21 +67,21 @@
   }
   .meta .time-virtual {
     font-size:14px;
-    opacity:0.9;
+    opacity:0.95;
     margin-bottom:6px;
   }
   .meta .hint {
     font-size:12px;
-    opacity:0.7;
+    opacity:0.75;
   }
 
-  /* Background gradient + subtle transition by CSS variables controlled from JS */
+  /* Background gradient element */
   .bg {
     position:absolute;
     inset:0;
     z-index: -3;
-    transition: opacity 0.6s linear;
-    background: linear-gradient(180deg, var(--bg-grad-1), var(--bg-grad-2));
+    transition: background 600ms linear;
+    background: linear-gradient(180deg, #ffd1dc, #ff8fa3);
     filter: saturate(1.02);
   }
 
@@ -99,20 +95,6 @@
     mix-blend-mode: overlay;
   }
 
-  /* texture from user image (grain/print) */
-  .texture{
-    position:absolute;
-    inset:0;
-    z-index:-1;
-    background-image: url('/mnt/data/723985f22357301a668f15e95f65b59f.jpg');
-    background-size: cover;
-    background-position: center;
-    opacity: 0.08;
-    filter: grayscale(60%) contrast(0.9) brightness(0.9);
-    mix-blend-mode: overlay;
-    pointer-events:none;
-  }
-
   /* twilight candle glow overlay */
   .candle-glow{
     position:absolute;
@@ -121,7 +103,7 @@
     pointer-events:none;
     mix-blend-mode: screen;
     opacity:0;
-    transition: opacity 500ms linear;
+    transition: opacity 500ms linear, transform 300ms linear, filter 300ms linear;
     background:
       radial-gradient(600px 200px at 50% 85%, rgba(255,210,120,0.12), rgba(255,150,60,0.06) 10%, transparent 30%),
       radial-gradient(300px 120px at 20% 70%, rgba(255,210,120,0.08), transparent 40%),
@@ -139,23 +121,22 @@
     letter-spacing:1px;
   }
 
-  /* simple minimal cursor */
+  /* accessibility */
   .clock, .meta{ user-select:none; }
 
 </style>
 </head>
 <body>
   <div class="wrap" id="wrap">
-    <div class="bg" id="bg"></div>
-    <div class="light-shine"></div>
-    <div class="texture" aria-hidden="true"></div>
-    <div class="candle-glow" id="candle"></div>
+    <div class="bg" id="bg" aria-hidden="true"></div>
+    <div class="light-shine" aria-hidden="true"></div>
+    <div class="candle-glow" id="candle" aria-hidden="true"></div>
 
     <div class="panel" role="main" aria-live="polite">
-      <div class="clock" id="clock">06:00</div>
+      <div class="clock" id="clock" aria-label="orologio virtuale">06:00</div>
       <div class="meta">
         <div class="phase" id="phase">Alba</div>
-        <div class="time-virtual" id="vtime">06:00</div>
+        <div class="time-virtual" id="vtime">06:00:00</div>
         <div class="hint">Ciclo 4 minuti — 06:00 → 23:00</div>
       </div>
     </div>
@@ -165,13 +146,13 @@
 
 <script>
 /*
-  Mapping:
-  - Virtual day runs from 06:00 (6) to 23:00 (23) => 17 hours = 61200 virtual seconds
-  - Real cycle duration = 240 seconds (4 minutes) = 240000 ms
-  Virtual seconds advanced per real ms = 61200 / 240000 = 0.255
+  Mappatura:
+  - Virtual day: 06:00 (6) → 23:00 (23) => 17 ore = 61.200 secondi virtuali
+  - Durata reale ciclo = 240.000 ms (4 minuti)
+  - Avanzamento virtuale per ms = 61.200 / 240.000
 */
 
-const CYCLE_MS = 240000; // 4 minutes in ms
+const CYCLE_MS = 240000; // 4 minuti in ms
 const VIRTUAL_START_HOUR = 6;
 const VIRTUAL_TOTAL_SECONDS = (23 - 6) * 3600; // 61200
 
@@ -184,15 +165,15 @@ const candle = document.getElementById('candle');
 
 let cycleStart = performance.now();
 
-// color palettes per phase (hex)
+// definizione fasi con palette (c1 -> c2)
 const PHASES = [
-  { name: 'Alba', startH:6, endH:8,  c1:'#FFD1DC', c2:'#FF8FA3' }, // pink sunrise
-  { name: 'Giorno', startH:8, endH:17, c1:'#A7D3FF', c2:'#FFFFFF' }, // blue-white
-  { name: 'Tramonto', startH:17,endH:20, c1:'#FFB27A', c2:'#FF3E2D' }, // orange-red
-  { name: 'Twilight', startH:20,endH:23, c1:'#071433', c2:'#0B193B' } // deep blue + candle overlay
+  { name: 'Alba', startH:6, endH:8,  c1:'#FFD1DC', c2:'#FF8FA3' },       // rosa alba
+  { name: 'Giorno', startH:8, endH:17, c1:'#A7D3FF', c2:'#FFFFFF' },    // azzurro -> bianco
+  { name: 'Tramonto', startH:17,endH:20, c1:'#FFB27A', c2:'#FF3E2D' },  // arancio -> rosso
+  { name: 'Twilight', startH:20,endH:23, c1:'#071433', c2:'#0B193B' }   // blu notte
 ];
 
-// helper: hex -> {r,g,b}
+// helper: hex <-> rgb e mix
 function hexToRgb(hex) {
   hex = hex.replace('#','');
   if(hex.length === 3) hex = hex.split('').map(h=>h+h).join('');
@@ -213,7 +194,7 @@ function mixHex(h1,h2,t){
   });
 }
 
-// get virtual seconds since start of virtual day (06:00)
+// calcola secondi virtuali dato elapsed reale
 function getVirtualSeconds(elapsedMs){
   const fraction = (elapsedMs % CYCLE_MS) / CYCLE_MS;
   return Math.round(fraction * VIRTUAL_TOTAL_SECONDS);
@@ -223,11 +204,12 @@ function formatVirtualTime(vSeconds){
   const total = VIRTUAL_START_HOUR*3600 + vSeconds;
   let hh = Math.floor(total/3600) % 24;
   let mm = Math.floor((total%3600)/60);
+  let ss = Math.floor(total%60);
   const pad=(n)=> (n<10? '0'+n: ''+n);
-  return `${pad(hh)}:${pad(mm)}`;
+  return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
 }
 
-// determine phase and phase progress from virtual hour + minute
+// trova fase e progresso
 function getPhaseInfo(hh, mm, ss){
   const time = hh + mm/60 + ss/3600;
   for(let p of PHASES){
@@ -237,18 +219,16 @@ function getPhaseInfo(hh, mm, ss){
       return { phase: p, progress: local };
     }
   }
-  // edge case: if exactly at 23:00 map to twilight
   return { phase: PHASES[PHASES.length-1], progress: 1.0 };
 }
 
-// keep candle flicker while in twilight
+let lastTime = performance.now();
 let flickerTimer = 0;
 function updateCandleFlicker(active, delta){
   if(active){
     candle.style.opacity = 1;
     flickerTimer += delta;
-    // change blend slightly over time
-    const v = 0.85 + Math.sin(flickerTimer*0.02)*0.15 + (Math.random()*0.06 - 0.03);
+    const v = 0.6 + Math.sin(flickerTimer*0.02)*0.15 + (Math.random()*0.06 - 0.03);
     candle.style.transform = `scale(${1 + 0.004*Math.sin(flickerTimer*0.04)})`;
     candle.style.filter = `blur(${12 + Math.sin(flickerTimer*0.03)*2}px)`;
     candle.style.opacity = 0.6 + Math.random()*0.16;
@@ -257,8 +237,7 @@ function updateCandleFlicker(active, delta){
   }
 }
 
-// main animation loop
-let lastTime = performance.now();
+// loop principale
 function tick(now){
   const elapsed = now - cycleStart;
   const delta = now - lastTime;
@@ -270,62 +249,54 @@ function tick(now){
   const mm = Math.floor((totalVirtual%3600)/60);
   const ss = Math.floor(totalVirtual%60);
 
-  // update time displays
+  // aggiornamento orologio
   const pad = n => n<10? '0'+n: ''+n;
   clockEl.textContent = `${pad(hh)}:${pad(mm)}`;
   vtimeEl.textContent = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
 
-  // phase
+  // fase corrente
   const {phase, progress} = getPhaseInfo(hh, mm, ss);
   phaseEl.textContent = phase.name;
 
-  // compute gradient by blending phase colors (and slight smoothing into next phase)
-  // find index of current phase and next phase for smooth crossfade across phase boundaries
+  // mix colori della fase (con lieve blend verso la fase successiva se siamo vicini al bordo)
   let idx = PHASES.indexOf(phase);
   let next = PHASES[Math.min(idx+1, PHASES.length-1)];
-
-  // we mix within phase c1->c2 using progress, and also gently blend to next phase start color near edge
   const inner = mixHex(phase.c1, phase.c2, Math.min(1, progress*1.0));
-  // blend towards next phase's first color when close to end
   const nearEndBlend = (progress > 0.85) ? (progress-0.85)/0.15 : 0;
   const across = mixHex(inner, next.c1, nearEndBlend);
 
-  // set CSS background gradient
+  // impostazione gradient sul div .bg
   bg.style.background = `linear-gradient(180deg, ${across}, ${mixHex(across, '#000000', 0.02)})`;
 
-  // brightness / contrast adjustments per phase to keep minimal aesthetics
+  // adattamenti di luminosità/contrasto e testo per leggibilità
   if(phase.name === 'Giorno'){
     wrap.style.filter = 'brightness(1) contrast(1)';
-    candle.style.opacity = 0;
-  } else if(phase.name === 'Alba'){
-    wrap.style.filter = 'brightness(1.02) contrast(0.98)';
-    candle.style.opacity = 0;
-  } else if(phase.name === 'Tramonto'){
-    wrap.style.filter = 'brightness(0.98) contrast(1.02)';
-    candle.style.opacity = 0;
-  } else if(phase.name === 'Twilight'){
-    wrap.style.filter = 'brightness(0.78) contrast(1.05)';
-  }
-
-  // show candle glow only for twilight (and add flicker)
-  updateCandleFlicker(phase.name === 'Twilight', delta);
-
-  // also adjust text color for strong contrast (day -> dark text, night -> white text)
-  if(phase.name === 'Giorno'){
     document.documentElement.style.setProperty('--clock-color', '#0B1B2B');
     document.documentElement.style.setProperty('--phase-name-color', 'rgba(10,20,30,0.85)');
-  } else {
+  } else if(phase.name === 'Alba'){
+    wrap.style.filter = 'brightness(1.02) contrast(0.98)';
     document.documentElement.style.setProperty('--clock-color', '#FFFFFF');
     document.documentElement.style.setProperty('--phase-name-color', 'rgba(255,255,255,0.9)');
+  } else if(phase.name === 'Tramonto'){
+    wrap.style.filter = 'brightness(0.98) contrast(1.02)';
+    document.documentElement.style.setProperty('--clock-color', '#FFFFFF');
+    document.documentElement.style.setProperty('--phase-name-color', 'rgba(255,255,255,0.9)');
+  } else if(phase.name === 'Twilight'){
+    wrap.style.filter = 'brightness(0.78) contrast(1.05)';
+    document.documentElement.style.setProperty('--clock-color', '#FFFFFF');
+    document.documentElement.style.setProperty('--phase-name-color', 'rgba(255,255,255,0.95)');
   }
+
+  // candle glow solo in twilight
+  updateCandleFlicker(phase.name === 'Twilight', delta);
 
   requestAnimationFrame(tick);
 }
 
-// Kick off loop (restart cycles automatically by using modulo elapsed)
+// avvia loop
 requestAnimationFrame(tick);
 
-// OPTIONAL: restart cycle when user clicks to re-sync (useful while testing)
+// click per resettare il ciclo (utile per testing)
 wrap.addEventListener('click', (e) => {
   cycleStart = performance.now();
 });
