@@ -13,8 +13,8 @@
   html,body{
     height:100%;
     margin:0;
-    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
-    overflow: hidden;
+    font-family:"Inter","Helvetica Neue",Arial,sans-serif;
+    overflow:hidden;
   }
 
   .wrap{
@@ -25,7 +25,7 @@
     padding:48px;
     position:relative;
     overflow:hidden;
-    transition: background 2s linear; /* transizione fluida */
+    transition: background 3s linear;
   }
 
   .panel{
@@ -35,8 +35,8 @@
     align-items:center;
     justify-content:space-between;
     gap:24px;
-    position: relative;
-    z-index: 2;
+    position:relative;
+    z-index:2;
   }
 
   .clock {
@@ -52,27 +52,14 @@
     .clock{ font-size:56px; }
   }
 
-  .meta {
+  .meta{
     text-align:right;
     color:var(--phase-name-color);
     min-width:220px;
   }
-
-  .meta .phase {
-    font-size:18px;
-    font-weight:600;
-    letter-spacing:1px;
-    margin-bottom:10px;
-  }
-  .meta .time-virtual {
-    font-size:14px;
-    opacity:0.95;
-    margin-bottom:6px;
-  }
-  .meta .hint {
-    font-size:12px;
-    opacity:0.75;
-  }
+  .meta .phase{ font-size:18px; font-weight:600; letter-spacing:1px; margin-bottom:10px; }
+  .meta .time-virtual{ font-size:14px; opacity:0.95; margin-bottom:6px; }
+  .meta .hint{ font-size:12px; opacity:0.75; }
 
   .bg-filter{
     position:absolute;
@@ -80,19 +67,19 @@
     z-index:-2;
     pointer-events:none;
     mix-blend-mode: overlay;
-    opacity:0.5; /* più evidente */
-    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15), transparent 60%);
-    animation: aurora 20s infinite alternate; /* più lento */
+    opacity:0.55;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15), transparent 70%);
+    animation: aurora 30s infinite alternate;
   }
 
   @keyframes aurora{
-    0% { background-position: 30% 30%; }
-    50% { background-position: 70% 50%; }
-    100% { background-position: 50% 70%; }
+    0%{ background-position: 20% 20%; }
+    50%{ background-position: 80% 50%; }
+    100%{ background-position: 50% 80%; }
   }
 
   .footer-note{
-    position: absolute;
+    position:absolute;
     left:12px;
     bottom:10px;
     color: rgba(255,255,255,0.6);
@@ -101,7 +88,7 @@
     z-index:2;
   }
 
-  .clock, .meta{ user-select:none; }
+  .clock,.meta{ user-select:none; }
 </style>
 </head>
 <body>
@@ -123,7 +110,7 @@
 <script>
 const CYCLE_MS = 240000; // 4 minuti
 const VIRTUAL_START_HOUR = 6;
-const VIRTUAL_TOTAL_SECONDS = (23 - 6) * 3600;
+const VIRTUAL_TOTAL_SECONDS = (23-6)*3600;
 
 const wrap = document.getElementById('wrap');
 const bgFilter = document.getElementById('bgFilter');
@@ -133,50 +120,51 @@ const phaseEl = document.getElementById('phase');
 
 let cycleStart = performance.now();
 
-// Fasi con colori base per interpolazione
+// Fasi con colori realistici e tempistiche corrette
 const PHASES = [
-  { name:'DAWN', startH:6, endH:10, color:'#FFB2A0' },
-  { name:'MIDDAY', startH:10,endH:14, color:'#A0D4FF' },
-  { name:'AFTERNOON', startH:14,endH:18, color:'#FFAA4D' },
-  { name:'SUNSET_TWILIGHT', startH:18,endH:23, color:'#2C3A70' }
+  {name:'DAWN', startH:6, endH:10, color:'#FFD1DC'},       // rosa alba
+  {name:'MIDDAY', startH:10, endH:14, color:'#A0D4FF'},    // azzurro chiaro
+  {name:'AFTERNOON', startH:14, endH:18, color:'#FFF4AA'}, // giallo chiaro
+  {name:'SUNSET', startH:18, endH:20.5, color:'#FFAA4D'},  // arancio
+  {name:'TWILIGHT', startH:20.5, endH:23, color:'#2C3A70'} // blu notte
 ];
 
-// Helper: interpolazione colori
+// Helper colori
 function hexToRgb(hex){
-  hex = hex.replace('#','');
-  if(hex.length===3) hex = hex.split('').map(h=>h+h).join('');
-  const n = parseInt(hex,16);
-  return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
+  hex=hex.replace('#','');
+  if(hex.length===3) hex=hex.split('').map(h=>h+h).join('');
+  const n=parseInt(hex,16);
+  return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
 }
 function rgbToHex({r,g,b}){
   const toHex=v=>('0'+Math.round(Math.max(0,Math.min(255,v))).toString(16)).slice(-2);
   return '#'+toHex(r)+toHex(g)+toHex(b);
 }
-function lerp(a,b,t){ return a + (b-a)*t; }
+function lerp(a,b,t){return a+(b-a)*t;}
 function mixHex(h1,h2,t){
-  const a = hexToRgb(h1), b = hexToRgb(h2);
-  return rgbToHex({r:lerp(a.r,b.r,t),g:lerp(a.g,b.g,t),b:lerp(a.b,b.b,t)});
+  const a=hexToRgb(h1), b=hexToRgb(h2);
+  return rgbToHex({r:lerp(a.r,b.r,t), g:lerp(a.g,b.g,t), b:lerp(a.b,b.b,t)});
 }
 
 // Tempo virtuale
 function getVirtualSeconds(elapsedMs){
-  const fraction = (elapsedMs % CYCLE_MS) / CYCLE_MS;
+  const fraction = (elapsedMs % CYCLE_MS)/CYCLE_MS;
   return Math.round(fraction * VIRTUAL_TOTAL_SECONDS);
 }
 
-// Calcola fase corrente e colore interpolato
+// Calcola fase e colore interpolato
 function getPhaseInfo(hh, mm, ss){
-  const time = hh + mm/60 + ss/3600;
+  const time=hh+mm/60+ss/3600;
   for(let i=0;i<PHASES.length;i++){
     const p=PHASES[i];
     if(time>=p.startH && time<p.endH){
-      const t = (time - p.startH)/(p.endH - p.startH);
-      const next = PHASES[i+1] ? PHASES[i+1] : p;
-      const color = mixHex(p.color,next.color,t);
+      const t=(time-p.startH)/(p.endH-p.startH);
+      const next=PHASES[i+1] ? PHASES[i+1] : p;
+      const color=mixHex(p.color,next.color,t);
       return {phase:p, progress:t, color:color};
     }
   }
-  const last = PHASES[PHASES.length-1];
+  const last=PHASES[PHASES.length-1];
   return {phase:last, progress:1, color:last.color};
 }
 
@@ -188,7 +176,7 @@ function tick(now){
   const mm = Math.floor((totalVirtual%3600)/60);
   const ss = Math.floor(totalVirtual%60);
 
-  const pad=n=>(n<10?'0':'')+n;
+  const pad = n => (n<10?'0':'')+n;
   clockEl.textContent = `${pad(hh)}:${pad(mm)}`;
   vtimeEl.textContent = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
 
@@ -197,19 +185,18 @@ function tick(now){
 
   wrap.style.background = color;
 
-  // overlay aurora più evidente
-  const t = (performance.now()%10000)/10000;
-  const r = Math.floor(parseInt(color.slice(1,3),16)*(0.7+0.3*Math.sin(t*6.28)));
-  const g = Math.floor(parseInt(color.slice(3,5),16)*(0.7+0.3*Math.sin(t*5.28)));
-  const b = Math.floor(parseInt(color.slice(5,7),16)*(0.7+0.3*Math.sin(t*7.28)));
-  bgFilter.style.background = `radial-gradient(circle at ${30+40*progress}% ${30+40*progress}%, rgba(${r},${g},${b},0.4), transparent 70%)`;
+  // overlay aurora più visibile e dinamico
+  const t=(performance.now()%15000)/15000;
+  const r=Math.floor(parseInt(color.slice(1,3),16)*(0.6+0.4*Math.sin(t*6.28)));
+  const g=Math.floor(parseInt(color.slice(3,5),16)*(0.6+0.4*Math.sin(t*5.28)));
+  const b=Math.floor(parseInt(color.slice(5,7),16)*(0.6+0.4*Math.sin(t*7.28)));
+  bgFilter.style.background=`radial-gradient(circle at ${30+40*progress}% ${30+40*progress}%, rgba(${r},${g},${b},0.55), transparent 80%)`;
 
   requestAnimationFrame(tick);
 }
 
 requestAnimationFrame(tick);
-wrap.addEventListener('click', ()=>{ cycleStart = performance.now(); });
-
+wrap.addEventListener('click',()=>{cycleStart=performance.now();});
 </script>
 </body>
 </html>
